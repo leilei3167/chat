@@ -2,6 +2,11 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/leilei3167/chat/internal/api/handler"
+	"github.com/leilei3167/chat/internal/api/rpc"
+	"github.com/leilei3167/chat/internal/proto"
+	"github.com/leilei3167/chat/internal/tools"
 )
 
 // Register 初始化路由,注册处理器,中间件等
@@ -17,32 +22,45 @@ func Register() *gin.Engine {
 //初始化用户交互相关的处理器,如登录等
 func initUserRouter(r *gin.Engine) {
 	userGroup := r.Group("/user")
-	userGroup.Use(CheckSessionID()) //都必须检查session
-	userGroup.POST("/login")        //登录逻辑
-	userGroup.POST("/register")     //注册逻辑
+	//userGroup.Use(CheckSessionID())               //都必须检查session
+	userGroup.POST("/login", handler.Login)       //登录逻辑
+	userGroup.POST("/register", handler.Register) //注册逻辑
 	{
+		//TODO
 		userGroup.POST("/checkAuth")
 		userGroup.POST("/logout")
 	}
 
 }
+
+//push主要处理消息的推送和接收
 func initPushRouter(r *gin.Engine) {
 
 }
 
-type FormCheckSessionId struct { //每一个请求 都必须附带上Token
+type FormCheckSessionId struct { //每一个请求 都必须附带上Token这个form表单数据
 	AuthToken string `form:"authToken" json:"authToken" binding:"required"`
 }
 
 func CheckSessionID() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		/*	var formCheckSessionId FormCheckSessionId
-			if err := c.ShouldBindBodyWith(&formCheckSessionId, binding.JSON); err != nil {
-				tools.ResponseWithCode(c, tools.CodeSessionError, nil, nil)
-				return
-			}*/
+		var formCheckSessionId FormCheckSessionId
+		if err := c.ShouldBindBodyWith(&formCheckSessionId, binding.JSON); err != nil {
+			tools.ResponseWithCode(c, tools.CodeSessionError, nil, nil)
+			return
+		}
 		//获取到session后,和数据库进行比对,通过rpc调用logic的方法来验证
-		//TODO:验证session
+		//对于每一个经过的请求,都要检查其session!(rpc调用logic)
+		authToken := formCheckSessionId.AuthToken
+		req := &proto.CheckAuthRequest{
+			AuthToken: authToken,
+		}
+		code, userId, userName := rpc.RpcLogicObj.CheckAuth(req)
+		if code == tools.CodeFail || userId <= 0 || userName == "" {
+			c.Abort()
+			tools.ResponseWithCode(c, tools.CodeSessionError, nil, nil)
+			return
+		}
 		c.Next()
 		return
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/leilei3167/chat/config"
 	"github.com/leilei3167/chat/internal/api/router"
+	"github.com/leilei3167/chat/internal/api/rpc"
 	"github.com/sirupsen/logrus"
 	"net/http"
 	"os"
@@ -22,7 +23,7 @@ func New() *Chat { //统一各层服务开启方式,创建一个空结构体,初
 
 func (c *Chat) Run() {
 	//初始化本层所需服务
-
+	rpc.InitLogicRpcClient()
 	//初始化rpc客户端,用于api层调用logic进行上线注册;注册路由开启服务
 
 	r := router.Register()

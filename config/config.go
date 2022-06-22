@@ -12,11 +12,18 @@ import (
 var once sync.Once //单例模式,确保配置文件只初始化一次
 var Conf *Config
 
+const ( //定义常量配置,rpc状态码等
+	SuccessReplyCode   = 0
+	FailReplyCode      = 1
+	SuccessReplyMsg    = "success"
+	RedisBaseValidTime = 86400
+)
+
 // Config 汇总所有层的配置,每一个字段代表一个配置文件
 type Config struct {
 	Common Common //代表共用的配置
 	//Connect ConnectConfig
-	//	Logic   LogicConfig
+	Logic LogicConfig
 	//Task    TaskConfig
 	Api ApiConfig //api层的配置
 	//Site    SiteConfig
@@ -47,12 +54,20 @@ func Init() {
 		if err != nil {
 			panic(err)
 		}
+		viper.SetConfigName("logic")
+		err = viper.MergeInConfig()
+		if err != nil {
+			panic(err)
+		}
 
 		Conf = new(Config) //初始化 分配内存
 		if err := viper.Unmarshal(&Conf.Api); err != nil {
 			panic(err)
 		}
 		if err := viper.Unmarshal(&Conf.Common); err != nil {
+			panic(err)
+		}
+		if err := viper.Unmarshal(&Conf.Logic); err != nil {
 			panic(err)
 		}
 	})
@@ -96,4 +111,16 @@ type CommonEtcd struct { //配置文件的模块字段
 	UserName          string `mapstructure:"userName"`
 	Password          string `mapstructure:"password"`
 	ConnectionTimeout int    `mapstructure:"connectionTimeout"`
+}
+
+type LogicBase struct {
+	ServerId   string `mapstructure:"serverId"`
+	CpuNum     int    `mapstructure:"cpuNum"`
+	RpcAddress string `mapstructure:"rpcAddress"`
+	CertPath   string `mapstructure:"certPath"`
+	KeyPath    string `mapstructure:"keyPath"`
+}
+
+type LogicConfig struct {
+	LogicBase LogicBase `mapstructure:"logic-base"`
 }

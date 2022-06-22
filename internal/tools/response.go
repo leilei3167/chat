@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-//定义反馈至用户的错误码及信息
+//定义反馈至用户的错误码及信息,统一编写供handler调用 避免重复编码
 const (
 	CodeSuccess      = 0
 	CodeFail         = 1
@@ -37,4 +37,11 @@ func ResponseWithCode(c *gin.Context, msgCode int, msg interface{}, data interfa
 		"data":    data,
 	})
 
+}
+
+func FailWithMsg(c *gin.Context, msg interface{}) {
+	ResponseWithCode(c, CodeFail, msg, nil)
+}
+func SuccessWithMsg(c *gin.Context, msg interface{}, data interface{}) {
+	ResponseWithCode(c, CodeSuccess, msg, data)
 }
