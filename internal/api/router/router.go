@@ -26,16 +26,15 @@ func initUserRouter(r *gin.Engine) {
 	userGroup.POST("/login", handler.Login)       //登录逻辑
 	userGroup.POST("/register", handler.Register) //注册逻辑
 	{
-		//TODO
-		userGroup.POST("/checkAuth")
-		userGroup.POST("/logout")
+		userGroup.POST("/checkAuth", handler.CheckAuth) //和中间件调用的rpc服务一致
+		userGroup.POST("/logout", handler.Logout)
 	}
 
 }
 
 //push主要处理消息的推送和接收
 func initPushRouter(r *gin.Engine) {
-
+	//TODO
 }
 
 type FormCheckSessionId struct { //每一个请求 都必须附带上Token这个form表单数据

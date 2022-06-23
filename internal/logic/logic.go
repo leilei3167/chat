@@ -6,10 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/leilei3167/chat/config"
 	"github.com/sirupsen/logrus"
-	"os"
-	"os/signal"
 	"runtime"
-	"syscall"
 )
 
 type Logic struct {
@@ -35,11 +32,5 @@ func (logic *Logic) Run() {
 	if err := logic.InitRpcServer(); err != nil {
 		logrus.Panicf("logic init rpc server fail:%v", err)
 	}
-
-	quit := make(chan os.Signal)
-	signal.Notify(quit, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-	<-quit
-	logrus.Println("Shutdown Server ...")
-	os.Exit(0)
 
 }

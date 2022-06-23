@@ -33,3 +33,11 @@ type CheckAuthResponse struct {
 	UserId   int
 	UserName string
 }
+
+type LogoutRequest struct {
+	AuthToken string
+}
+
+type LogoutResponse struct { //只需返回退出成功与否
+	Code int
+}

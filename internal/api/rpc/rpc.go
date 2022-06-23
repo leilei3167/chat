@@ -13,13 +13,14 @@ import (
 	"time"
 )
 
+//包内私有的XClient,仅用于包内方法的调用
 var logicRpcClient client.XClient
 var once sync.Once
 
 type RpcLogic struct { //围绕一个实例构建调用函数
 }
 
-var RpcLogicObj *RpcLogic //外界通过rpc.RpcLogicObj来调用本包方法,在本包提前初始化好,避免调用处再创建
+var RpcLogicObj *RpcLogic //外界通过rpc.RpcLogicObj来调用本包方法,在本包提前初始化好,避免调用处再创建(类似于标准库的DefaultXXX写法)
 
 // InitLogicRpcClient 使用单例模式 创建全局的XClient
 func InitLogicRpcClient() {
@@ -59,7 +60,7 @@ func (rpc *RpcLogic) Login(req *proto.LoginRequest) (code int, authToken string,
 	reply := new(proto.LoginResponse)
 	//使用全局的XClient进行调用
 	err := logicRpcClient.Call(context.Background(), "Login", req, reply)
-	if err != nil {
+	if err != nil { //将错误信息作为msg传回
 		msg = err.Error()
 	}
 	code = reply.Code
@@ -85,5 +86,12 @@ func (rpc *RpcLogic) CheckAuth(req *proto.CheckAuthRequest) (code int, userId in
 	code = reply.Code
 	userId = reply.UserId
 	userName = reply.UserName
+	return
+}
+
+func (rpc *RpcLogic) Logout(req *proto.LogoutRequest) (code int) {
+	reply := &proto.LogoutResponse{}
+	logicRpcClient.Call(context.Background(), "Logout", req, reply)
+	code = reply.Code
 	return
 }

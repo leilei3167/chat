@@ -12,12 +12,17 @@ import (
 	"github.com/rpcxio/rpcx-etcd/serverplugin"
 	"github.com/sirupsen/logrus"
 	"github.com/smallnest/rpcx/server"
+	"os"
+	"os/signal"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 )
 
 var RedisClient *redis.Client
 var RedisSessClient *redis.Client
+var once sync.Once
 
 func (logic *Logic) InitPublishRedisClient() error {
 	//根据配置文件构建redis的配置选项
@@ -37,6 +42,9 @@ func (logic *Logic) InitPublishRedisClient() error {
 
 func (logic *Logic) InitRpcServer() (err error) {
 	var network, addr string
+	var wg sync.WaitGroup
+	exit := make(chan bool, 1)
+
 	//单进程多端口
 	rpcAddrList := strings.Split(config.Conf.Logic.LogicBase.RpcAddress, ",")
 	for _, bind := range rpcAddrList {
@@ -46,13 +54,24 @@ func (logic *Logic) InitRpcServer() (err error) {
 		}
 		logrus.Printf("logic start run at-->%s:%s", network, addr)
 		//每个地址开启服务,此处忽略了开启Serve的错误处理,应该可以使用errorgroup来处理多端口监听的情况?
-		go logic.createRpcServer(network, addr)
+		wg.Add(1)
+		go logic.createRpcServer(network, addr, exit, &wg)
 	}
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	<-quit
+	logrus.Println("Shutdown Server ...")
+	close(exit) //关闭后监听协程会解除阻塞读取到零值
+	wg.Wait()   //等待监听全部退出
+	os.Exit(0)
+
 	return
 }
 
-func (logic *Logic) createRpcServer(network string, addr string) {
+func (logic *Logic) createRpcServer(network string, addr string, ch chan bool, wg *sync.WaitGroup) {
 	//创建rpcx服务端,etcd插件
+	defer wg.Done()
 	s := server.NewServer()
 	addRegistryPlugin(s, network, addr)
 
@@ -63,10 +82,29 @@ func (logic *Logic) createRpcServer(network string, addr string) {
 		logrus.Fatalf("注册rpc服务错误:%s", err.Error())
 	}
 	//TODO:是如何下线的
+
 	s.RegisterOnShutdown(func(s *server.Server) {
-		s.UnregisterAll() //在优雅退出时,将注册的服务下线
+		err := s.UnregisterAll()
+		if err != nil {
+			logrus.Warnf("取消注册服务错误:%v", err)
+		} //在优雅退出时,将注册的服务下线
 	})
-	s.Serve(network, addr)
+	go func() {
+		err := s.Serve(network, addr)
+		if err != nil {
+			return
+		}
+	}()
+
+	<-ch
+	ctx, cancle := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancle()
+	err = s.Shutdown(ctx)
+	if err != nil {
+		logrus.Warn("logic rpc 关机错误:", err)
+	}
+	logrus.Printf("%s 已结束监听", network+addr)
+	os.Exit(0)
 }
 
 func addRegistryPlugin(s *server.Server, network, addr string) {
@@ -82,4 +120,8 @@ func addRegistryPlugin(s *server.Server, network, addr string) {
 		logrus.Fatal("添加etcd插件错误:", err)
 	}
 	s.Plugins.Add(r)
+}
+
+func getUserKey(userID string) string {
+	return config.RedisPrefix + userID
 }

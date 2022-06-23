@@ -135,3 +135,45 @@ func (r *RpcLogic) CheckAuth(ctx context.Context, args *proto.CheckAuthRequest, 
 	reply.UserName = userName
 	return
 }
+
+func (r *RpcLogic) Logout(ctx context.Context, args *proto.LogoutRequest, reply *proto.LogoutResponse) (err error) {
+	reply.Code = tools.CodeFail
+	token := args.AuthToken
+	sessionId := tools.CreateSessionID(token) //获取token,组装sessionId 便于在redis中查询
+	var userDataMap = map[string]string{}
+	userDataMap, err = RedisSessClient.HGetAll(context.Background(), sessionId).Result()
+	if err != nil {
+		logrus.Warnf("查询sessionID:'%s'出错:%v", sessionId, err)
+		return err
+	}
+	if len(userDataMap) == 0 {
+		logrus.Warnf("seesionID:'%s'不存在用户信息:%v", sessionId, err)
+		return
+	}
+
+	//若查询到,则删除redis中的数据,一个是在线session,一个是登录session,一个是该用户所在的位置信息(在哪个server
+	//1.删除在线session
+	intUserId, _ := strconv.Atoi(userDataMap["userId"])
+	sessIdMap := tools.GetSessionIdByUserId(intUserId) //在线sess
+	err = RedisSessClient.Del(context.Background(), sessIdMap).Err()
+	if err != nil {
+		logrus.Warnf("删除在线session:%s出错:%v", sessIdMap, err)
+		return err
+	}
+	//2.删除用户server信息
+	serverIDKey := getUserKey(strconv.Itoa(intUserId))
+	err = RedisSessClient.Del(context.Background(), serverIDKey).Err()
+	if err != nil {
+		logrus.Warnf("删除用户server信息:%s出错:%v", serverIDKey, err)
+		return err
+	}
+	//3.删除登录信息session
+	err = RedisSessClient.Del(context.Background(), sessionId).Err()
+	if err != nil {
+		logrus.Warnf("删除登录session:%s出错:%v", sessionId, err)
+		return err
+	}
+
+	reply.Code = config.SuccessReplyCode
+	return
+}

@@ -50,6 +50,8 @@
 4. 关于session:将存在两种session,一种是记住登录状态的(由sess_前缀和randToken拼接而成),在注册完成登录完成后创建,另一种是上线状态的session  
    (由sess_map和userId拼接而成)
 5. 上线session的组成是sess_map和userId为key,登录的随机token为value
+6. 在用户成功登录后会执行connect,将当前user连接信息保存至redis,在下线时,单一user在redis中会有3个信息:1.便于验证的sessionID(包含user信息)  
+2.用于鉴别在线状态的session(key是userID加前缀对应的value是token) 3.user当前连接的server信息(userID加前缀为key,value为唯一serverID等),执行logout时需将上述全部删除
 #### 注册逻辑的实现
 1. 调用dao层方法,根据userName查询是否已存在user
 2. 若不存在,将user信息存入mysql,返回一个userID(主键)
@@ -75,3 +77,11 @@ dao层才是进行crud操作的地方;对于gorm,可以在初始化时设置LogM
 - 数据库执行操作后返回其主键是基本意识
 - GetRandomToken生成随机的字符串,使用到rand.Reader和io.ReadFull,base64.URLEncoding.EncodeToString(URL方式会避免生成/和+)
 - 存入redis时,因为包含存入以及设置过期时间2步,应该使用事务来存储(事务是使用TxPipeline来实现)
+
+## connect层
+
+### 关键点
+- 
+#### wb模式
+
+#### tcp模式

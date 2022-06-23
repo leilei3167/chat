@@ -2,6 +2,7 @@
 package config
 
 import (
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"os"
 	"path/filepath"
@@ -17,13 +18,14 @@ const ( //定义常量配置,rpc状态码等
 	FailReplyCode      = 1
 	SuccessReplyMsg    = "success"
 	RedisBaseValidTime = 86400
+	RedisPrefix        = "gochat_"
 )
 
 // Config 汇总所有层的配置,每一个字段代表一个配置文件
 type Config struct {
-	Common Common //代表共用的配置
-	//Connect ConnectConfig
-	Logic LogicConfig
+	Common  Common //代表共用的配置
+	Connect ConnectConfig
+	Logic   LogicConfig
 	//Task    TaskConfig
 	Api ApiConfig //api层的配置
 	//Site    SiteConfig
@@ -70,6 +72,7 @@ func Init() {
 		if err := viper.Unmarshal(&Conf.Logic); err != nil {
 			panic(err)
 		}
+		logrus.Debugf("%#v", Conf)
 	})
 }
 func GetEnv() string {
@@ -123,4 +126,54 @@ type LogicBase struct {
 
 type LogicConfig struct {
 	LogicBase LogicBase `mapstructure:"logic-base"`
+}
+
+type ConnectConfig struct {
+	ConnectBase                ConnectBase                `mapstructure:"connect-base"`
+	ConnectRpcAddressWebSockts ConnectRpcAddressWebsockts `mapstructure:"connect-rpcAddress-websockts"`
+	ConnectRpcAddressTcp       ConnectRpcAddressTcp       `mapstructure:"connect-rpcAddress-tcp"`
+	ConnectBucket              ConnectBucket              `mapstructure:"connect-bucket"`
+	ConnectWebsocket           ConnectWebsocket           `mapstructure:"connect-websocket"`
+	ConnectTcp                 ConnectTcp                 `mapstructure:"connect-tcp"`
+}
+
+type ConnectBase struct {
+	CertPath string `mapstructure:"certPath"`
+	KeyPath  string `mapstructure:"keyPath"`
+}
+
+type ConnectRpcAddressWebsockts struct {
+	Address string `mapstructure:"address"`
+}
+
+type ConnectRpcAddressTcp struct {
+	Address string `mapstructure:"address"`
+}
+
+type ConnectBucket struct {
+	CpuNum        int    `mapstructure:"cpuNum"`
+	Channel       int    `mapstructure:"channel"`
+	Room          int    `mapstructure:"room"`
+	SrvProto      int    `mapstructure:"svrProto"`
+	RoutineAmount uint64 `mapstructure:"routineAmount"`
+	RoutineSize   int    `mapstructure:"routineSize"`
+}
+
+type ConnectWebsocket struct {
+	ServerId string `mapstructure:"serverId"`
+	Bind     string `mapstructure:"bind"`
+}
+
+type ConnectTcp struct {
+	ServerId      string `mapstructure:"serverId"`
+	Bind          string `mapstructure:"bind"`
+	SendBuf       int    `mapstructure:"sendbuf"`
+	ReceiveBuf    int    `mapstructure:"receivebuf"`
+	KeepAlive     bool   `mapstructure:"keepalive"`
+	Reader        int    `mapstructure:"reader"`
+	ReadBuf       int    `mapstructure:"readBuf"`
+	ReadBufSize   int    `mapstructure:"readBufSize"`
+	Writer        int    `mapstructure:"writer"`
+	WriterBuf     int    `mapstructure:"writerBuf"`
+	WriterBufSize int    `mapstructure:"writeBufSize"`
 }

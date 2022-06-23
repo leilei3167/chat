@@ -61,3 +61,52 @@ func Register(c *gin.Context) {
 	}
 	tools.SuccessWithMsg(c, "register success", authToken)
 }
+
+// FormCheckAuth 用于获取token用于验证用户状态
+type FormCheckAuth struct {
+	AuthToken string `form:"authToken" json:"authToken" bingding:"required"`
+}
+
+func CheckAuth(c *gin.Context) {
+	var formAuth FormCheckAuth
+	if err := c.ShouldBindBodyWith(&formAuth, binding.JSON); err != nil {
+		tools.FailWithMsg(c, err.Error())
+		return
+	}
+	//构建rpc请求
+	token := formAuth.AuthToken
+	req := &proto.CheckAuthRequest{AuthToken: token}
+	code, id, name := rpc.RpcLogicObj.CheckAuth(req)
+	if code == tools.CodeFail {
+		tools.FailWithMsg(c, "auth fail")
+		return
+	}
+	var result = map[string]interface{}{
+		"userId":   id,
+		"userName": name,
+	}
+	tools.SuccessWithMsg(c, "auth success", result)
+}
+
+// FormLogout 退出登录,将该token删除即可
+type FormLogout struct {
+	AuthToken string `form:"authToken" json:"authToken" binding:"required"`
+}
+
+func Logout(c *gin.Context) {
+	var formLogout FormLogout
+	if err := c.ShouldBindBodyWith(&formLogout, binding.JSON); err != nil {
+		tools.FailWithMsg(c, err.Error())
+		return
+	}
+	authToken := formLogout.AuthToken
+	logoutReq := &proto.LogoutRequest{
+		AuthToken: authToken,
+	}
+	code := rpc.RpcLogicObj.Logout(logoutReq)
+	if code == tools.CodeFail {
+		tools.FailWithMsg(c, "logout fail!")
+		return
+	}
+	tools.SuccessWithMsg(c, "logout ok!", nil)
+}
